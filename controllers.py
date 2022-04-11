@@ -1,7 +1,6 @@
 
 from flask.views import MethodView
 from flask import jsonify, request, session
-#from model import users
 import hashlib
 import pymysql
 import bcrypt
@@ -24,7 +23,6 @@ def crear_conexion():
 
 create_register_schema = CreateRegisterSchema()
 create_login_schema = CreateLoginSchema()
-#create_compra_schema = CreateCompraSchema()
 create_crearproducto_schema =CreateProductoSchema()
 
 #http://127.0.0.1:5000/register
@@ -84,13 +82,13 @@ class LoginControllers(MethodView):
         conexion.close()
 
         if auto==None:
-            return jsonify({"Status": "usuario no registrado 22"}), 400
+            return jsonify({"Status": "usuario no registrado 66"}), 400
 
         db_password = bytes(auto[0], encoding="utf-8")
 
         if (auto[1]==email):
             if not bcrypt.checkpw(user_password, db_password):
-                encoded_jwt = jwt.encode({'exp': datetime.datetime.utcnow() + datetime.timedelta(seconds=3000), 'email': email}, KEY_TOKEN_AUTH , algorithm='HS256')
+                encoded_jwt = jwt.encode({'exp': datetime.datetime.utcnow() + datetime.timedelta(seconds=3000), 'email': email, 'nombre':auto[2]}, KEY_TOKEN_AUTH , algorithm='HS256')
                 return jsonify({"Status": "login exitoso","usuario: "+auto[2]+ "token ": encoded_jwt}), 200
         else:
             return jsonify({"Status": "correo o clave incorrecta"}), 400
@@ -106,49 +104,28 @@ class CreateProductoControllers(MethodView):
         precio = content.get("precio") # = 12000
         print("--------", nombrep, precio)
         print(content)
-       # errors = create_crearproducto_schema.validate(content)
-        #if errors:
-         #   return errors, 400
-        conexion=crear_conexion()
-        cursor = conexion.cursor()
-        cursor.execute(
-                 "INSERT INTO productos (nombreproducto,precio) VALUES(%s,%s)", (nombrep,precio))
-        conexion.commit()
-        conexion.close()
-        return ("Nuevo producto creado satisfactoriamente")
+        if (request.headers.get('Authorization')):
+            token=request.headers.get("Authorization").split(" ")
+            try:
+                decoded_jwt = jwt.decode(token[1], KEY_TOKEN_AUTH, algorithms=['HS256'])      
+                errors = create_crearproducto_schema.validate(content)
+               #Validaciones
+                if errors:
+                    return errors, 400
+                conexion=crear_conexion()
+                cursor = conexion.cursor()
+                cursor.execute(
+                        "INSERT INTO productos (nombreproducto,precio) VALUES(%s,%s)", (nombrep,precio))
+                conexion.commit()
+                conexion.close()
+                return ("Nuevo producto creado satisfactoriamente")
+            except:
+                return jsonify({"Status":"Token Inválido"}), 400
+        return jsonify({"Status": "No ha enviado un token" }), 400
+
         
 
 #http://127.0.0.1:5000/comprar
-
-# {
-#   "idproducto": 1
-# }
-
-# class ComprarControllers(MethodView):
-#     def post(self):
-#         content = request.get_json()
-#         idp = content.get("idproducto")
-#         #Parametros por cabecera
-#         try:
-#             if (request.headers.get('Authorization')):
-#                 token = request.headers.get("Authorization").split(" ")
-#                 decoded_jwt = jwt.decode(token[1], KEY_TOKEN_AUTH , algorithms=['HS256'])
-#                 #validaciones
-#                 print("-----correo:",decoded_jwt.get("email")) 
-#                 errors = create_compra_schema.validate(content)
-#                 if errors:
-#                     return errors, 400
-#                 ###consulta base de datos
-#                 conexion=crear_conexion()
-#                 cursor = conexion.cursor()
-#                 cursor.execute("SELECT nom_producto, precio FROM producto WHERE cod_producto=%s", (idp, ) )
-#                 auto1 = cursor.fetchone()
-#                 print(auto1)
-#                 return jsonify({"Status": "Autorizado por token", "emailExtraido": decoded_jwt.get("email")}), 200
-#             else:
-#                 return jsonify({"Status": "Token invalido"}), 400
-#         except:
-#             return jsonify({"Status": "No ha enviado un token"}), 403
 
 #http://127.0.0.1:5000/productos
 class ProductosControllers(MethodView):
